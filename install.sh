@@ -1,6 +1,6 @@
 #!/bin/bash
 # Git Security Hooks - Installer
-# https://github.com/YOUR-USERNAME/git-security-hooks
+# https://github.com/wfried/git-security-hooks
 #
 # Usage:
 #   curl -sSL https://raw.githubusercontent.com/wfried/git-security-hooks/main/install.sh | bash
@@ -14,7 +14,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-REPO_URL="https://raw.githubusercontent.com/YOUR-USERNAME/git-security-hooks/main"
+REPO_URL="https://raw.githubusercontent.com/wfried/git-security-hooks/main"
 
 echo "🔧 Git Security Hooks Installer"
 echo ""
