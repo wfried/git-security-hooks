@@ -25,7 +25,7 @@ The pre-commit hook checks for:
 ./install.sh
 
 # Or download and run
-curl -sSL https://raw.githubusercontent.com/YOUR-USERNAME/git-security-hooks/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/wfried/git-security-hooks/main/install.sh | bash
 ```
 
 ### Manual Install
