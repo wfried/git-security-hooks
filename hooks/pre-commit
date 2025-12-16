@@ -1,0 +1,154 @@
+#!/bin/bash
+# Git Security Hooks - Pre-commit
+# https://github.com/YOUR-USERNAME/git-security-hooks
+#
+# Prevents accidental commits of sensitive data, credentials, and build artifacts.
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -e
+
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+FOUND_ISSUES=0
+
+echo "🔍 Running pre-commit security checks..."
+
+# =============================================================================
+# BUILD ARTIFACTS
+# =============================================================================
+echo "  → Checking for build artifacts..."
+BLOCKED_PATHS=(
+    ".aws-sam/"
+    "build.toml"
+    "xcuserstate"
+    "xcuserdata/"
+    "DerivedData/"
+    ".DS_Store"
+    "node_modules/"
+    "__pycache__/"
+    "*.pyc"
+    ".gradle/"
+    "build/"
+    "dist/"
+    ".next/"
+    "target/"
+)
+
+for pattern in "${BLOCKED_PATHS[@]}"; do
+    if git diff --cached --name-only | grep -q "$pattern"; then
+        echo -e "${RED}✗ ERROR: Build artifact detected: $pattern${NC}"
+        FOUND_ISSUES=1
+    fi
+done
+
+# =============================================================================
+# LOCAL FILE PATHS
+# =============================================================================
+echo "  → Checking for local file paths..."
+if git diff --cached | grep -iE "/Users/[a-zA-Z0-9_-]+|/home/[a-zA-Z0-9_-]+|C:\\\\Users\\\\[a-zA-Z0-9_-]+" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: Local file path detected (e.g., /Users/username, /home/username)${NC}"
+    echo -e "${YELLOW}  Use relative paths or environment variables instead${NC}"
+    FOUND_ISSUES=1
+fi
+
+# =============================================================================
+# AWS CREDENTIALS
+# =============================================================================
+echo "  → Checking for AWS credentials..."
+if git diff --cached | grep -E "AKIA[0-9A-Z]{16}" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: AWS Access Key detected${NC}"
+    FOUND_ISSUES=1
+fi
+if git diff --cached | grep -iE "aws_secret_access_key\s*=" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: AWS Secret Key detected${NC}"
+    FOUND_ISSUES=1
+fi
+
+# =============================================================================
+# API KEYS & SECRETS
+# =============================================================================
+echo "  → Checking for API keys..."
+# Skip comments and look for key=value patterns with long alphanumeric values
+if git diff --cached | grep -v "^#" | grep -v "^//" | grep -v "^\s*\*" | \
+   grep -iE "(api_key|apikey|api-key|secret_key|secret|token|password)\s*[=:]\s*['\"][a-zA-Z0-9_-]{20,}" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: Potential API key or secret detected${NC}"
+    FOUND_ISSUES=1
+fi
+
+# =============================================================================
+# SECRET FILES
+# =============================================================================
+echo "  → Checking for secret files..."
+SECRET_FILES=(
+    # Environment files
+    "\.env$"
+    "\.env\.local$"
+    "\.env\.production$"
+    "\.env\.development$"
+    
+    # Certificates & Keys
+    "\.pem$"
+    "\.key$"
+    "\.p12$"
+    "\.pfx$"
+    "\.jks$"
+    "\.keystore$"
+    
+    # iOS/macOS specific (Xcode projects)
+    "Secrets\.plist$"
+    "Secrets\.xcconfig$"
+    
+    # General JSON secrets
+    "secrets\.json$"
+    "credentials\.json$"
+    "service-account.*\.json$"
+    
+    # Cloud provider configs
+    "\.aws/credentials$"
+    "\.kube/config$"
+)
+
+for pattern in "${SECRET_FILES[@]}"; do
+    if git diff --cached --name-only | grep -E "$pattern" > /dev/null 2>&1; then
+        echo -e "${RED}✗ ERROR: Secret file detected matching: $pattern${NC}"
+        FOUND_ISSUES=1
+    fi
+done
+
+# =============================================================================
+# URLS WITH CREDENTIALS
+# =============================================================================
+echo "  → Checking for URLs with credentials..."
+if git diff --cached | grep -E "https?://[^:]+:[^@]+@" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: URL with embedded credentials detected${NC}"
+    FOUND_ISSUES=1
+fi
+
+# =============================================================================
+# PRIVATE KEYS
+# =============================================================================
+echo "  → Checking for private keys..."
+if git diff --cached | grep -E "BEGIN (RSA|DSA|EC|OPENSSH|PGP) PRIVATE KEY" > /dev/null 2>&1; then
+    echo -e "${RED}✗ ERROR: Private key detected in diff${NC}"
+    FOUND_ISSUES=1
+fi
+
+# =============================================================================
+# RESULT
+# =============================================================================
+if [ $FOUND_ISSUES -eq 1 ]; then
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}  COMMIT BLOCKED: Security issues detected${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}Review the issues above and fix them before committing.${NC}"
+    echo -e "${YELLOW}To bypass (NOT RECOMMENDED): git commit --no-verify${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ All security checks passed${NC}"
+exit 0
