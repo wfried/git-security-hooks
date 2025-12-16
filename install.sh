@@ -3,7 +3,7 @@
 # https://github.com/YOUR-USERNAME/git-security-hooks
 #
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/YOUR-USERNAME/git-security-hooks/main/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/wfried/git-security-hooks/main/install.sh | bash
 #   OR
 #   ./install.sh
 
